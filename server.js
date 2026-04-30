@@ -20,7 +20,7 @@ const framesDir = path.join(uploadDir, 'frames');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 if (!fs.existsSync(framesDir)) fs.mkdirSync(framesDir, { recursive: true });
 
-// CRITICAL NEW LINE: Expose the frames folder to the internet/browser
+// Expose the frames folder to the internet/browser
 app.use('/frames', express.static(framesDir));
 
 const upload = multer({ dest: uploadDir });
@@ -47,18 +47,19 @@ app.post('/api/analyze', upload.single('video'), (req, res) => {
             .output(path.join(framesDir, 'frame-%03d.png'))
             .on('end', () => {
                 console.log("[SERVER] Frame extraction SUCCESS. Booting OpenCV Engine...");
-            // Point directly to the compiled executable
-const enginePath = path.join(process.cwd(), 'analyzer.exe');
-
-// We use 'python3' because Linux servers explicitly require the 3
-exec(`python3 analyzer.py "${framesDir}"`, (error, stdout, stderr) => {
-                    if (error) return res.status(500).send("Analysis Engine Failed");
+                
+                // Pure Linux execution
+                exec(`python3 analyzer.py "${framesDir}"`, (error, stdout, stderr) => {
+                    if (error) {
+                        console.error("[SERVER] OpenCV Error:", stderr);
+                        return res.status(500).send("Analysis Engine Failed");
+                    }
 
                     try {
                         const pyResult = JSON.parse(stdout);
                         if (pyResult.error) return res.status(500).send(pyResult.error);
 
-                        // NEW LOGIC: Find the exact frame with the highest slop score
+                        // Find the exact frame with the highest slop score
                         let worstFrameIndex = 0;
                         let highestSlop = -1;
                         pyResult.heatmap.forEach((score, idx) => {
@@ -68,9 +69,10 @@ exec(`python3 analyzer.py "${framesDir}"`, (error, stdout, stderr) => {
                             }
                         });
 
-                        // Ffmpeg numbers frames starting at 1 (frame-001.png)
+                        // Dynamically grab the real cloud URL for the image
                         const frameNum = String(worstFrameIndex + 1).padStart(3, '0');
-                        const worstFrameUrl = `http://localhost:3000/frames/frame-${frameNum}.png`;
+                        const baseUrl = `${req.protocol}://${req.get('host')}`;
+                        const worstFrameUrl = `${baseUrl}/frames/frame-${frameNum}.png`;
 
                         res.json({
                             message: "Forensic Scan Complete",
@@ -79,13 +81,13 @@ exec(`python3 analyzer.py "${framesDir}"`, (error, stdout, stderr) => {
                             framesExtracted: pyResult.heatmap.length,
                             overallConfidence: pyResult.confidence,
                             heatmap: pyResult.heatmap,
-                            // Send the image URL to React
                             evidenceUrl: worstFrameUrl,
-                            evidenceFrame: worstFrameIndex,
+                            evidenceFrame: worstFrameIndex + 1, // Offset by 1 so the UI reads "Frame 1" instead of "Frame 0"
                             evidenceScore: highestSlop
                         });
                         
                     } catch (parseErr) {
+                        console.error("[SERVER] JSON Parse Error:", stdout);
                         res.status(500).send("Engine Output Error");
                     } finally {
                         if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path); 
@@ -97,6 +99,8 @@ exec(`python3 analyzer.py "${framesDir}"`, (error, stdout, stderr) => {
     });
 });
 
-app.listen(3000, () => {
-    console.log("Slop Analyzer API running on http://localhost:3000");
+// Dynamic Port Binding for Cloud Deployment
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Slop Analyzer API running on port ${PORT}`);
 });
