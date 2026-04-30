@@ -50,7 +50,8 @@ app.post('/api/analyze', upload.single('video'), (req, res) => {
             // Point directly to the compiled executable
 const enginePath = path.join(process.cwd(), 'analyzer.exe');
 
-exec(`"${enginePath}" "${framesDir}"`, (error, stdout, stderr) => {
+// We use 'python3' because Linux servers explicitly require the 3
+exec(`python3 analyzer.py "${framesDir}"`, (error, stdout, stderr) => {
                     if (error) return res.status(500).send("Analysis Engine Failed");
 
                     try {
