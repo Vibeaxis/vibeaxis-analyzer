@@ -2,12 +2,19 @@
 FROM node:18-bullseye-slim
 
 # 2. Install FFmpeg, Python, and the C++ libraries OpenCV needs to run
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && \
+    apt-get install -y --fix-missing \
     ffmpeg \
     python3 \
     python3-pip \
     libgl1-mesa-glx \
     libglib2.0-0 \
+    || (apt-get update && apt-get install -y --fix-missing \
+    ffmpeg \
+    python3 \
+    python3-pip \
+    libgl1-mesa-glx \
+    libglib2.0-0) \
     && rm -rf /var/lib/apt/lists/*
 
 # 3. Create a working directory inside the container
