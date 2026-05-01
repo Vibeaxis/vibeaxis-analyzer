@@ -70,7 +70,7 @@ export default function App() {
           addLog('info', "Calculating dense vector magnitude and angle dispersion...");
       }, 3000);
 
-      const response = await fetch('http://localhost:3000/api/analyze', {
+      const response = await fetch('https://vibeaxis-analyzer-production.up.railway.app/api/analyze', {
         method: 'POST',
         body: formData
       });
