@@ -7,6 +7,66 @@
 html, body, #root {
   width: 100%;
   height: 100%;
-  overflow: hidden; /* This completely kills the main browser scrollbar */
+  overflow: hidden; 
   background-color: #09090b;
+}
+
+/* --- 1. THE BUTTON PULSE --- */
+/* Makes the execute button feel alive and begging to be clicked */
+@keyframes targeting-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+  70% { box-shadow: 0 0 0 12px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.btn-execute:not(:disabled) {
+  animation: targeting-pulse 2s infinite;
+  position: relative;
+  overflow: hidden;
+}
+
+/* --- 2. THE CRT SCANLINE OVERLAY --- */
+/* Gives the video frame that gritty, forensic security-camera vibe */
+.crt-overlay {
+  position: relative;
+}
+
+.crt-overlay::after {
+  content: " ";
+  display: block;
+  position: absolute;
+  top: 0; left: 0; bottom: 0; right: 0;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.15) 50%), 
+              linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+  z-index: 10;
+  background-size: 100% 3px, 3px 100%;
+  pointer-events: none;
+}
+
+/* --- 3. TARGET LOCK CROSSHAIR --- */
+/* Slowly spins and pulses over the anomaly */
+@keyframes lock-on {
+  0% { transform: scale(0.8) rotate(0deg); opacity: 0.5; }
+  50% { transform: scale(1.1) rotate(90deg); opacity: 1; }
+  100% { transform: scale(0.8) rotate(180deg); opacity: 0.5; }
+}
+
+.crosshair-lock {
+  animation: lock-on 3s ease-in-out infinite;
+}
+
+/* --- 4. DIGITAL GLITCH EFFECT --- */
+/* Used for the RED "Severe Temporal Chaos" text to make it feel broken */
+@keyframes text-glitch {
+  0% { transform: translate(0) }
+  20% { transform: translate(-2px, 1px) }
+  40% { transform: translate(-1px, -1px) }
+  60% { transform: translate(2px, 1px) }
+  80% { transform: translate(1px, -1px) }
+  100% { transform: translate(0) }
+}
+
+.text-glitch {
+  display: inline-block;
+  animation: text-glitch 0.3s cubic-bezier(.25, .46, .45, .94) both infinite;
 }

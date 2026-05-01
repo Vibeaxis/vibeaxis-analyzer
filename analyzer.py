@@ -4,19 +4,25 @@ import cv2
 import numpy as np
 import json
 
-def analyze_optical_flow(folder_path):
+def analyze_optical_flow(folder_path, step_size=5):
     files = [f for f in os.listdir(folder_path) if f.endswith('.png')]
     files.sort(key=lambda x: int(''.join(filter(str.isdigit, x)) or 0))
 
-    if len(files) < 5:
-        return print(json.dumps({"error": "Need more consecutive frames."}))
+    if len(files) <= step_size:
+        return print(json.dumps({"error": f"Need at least {step_size + 1} frames to scan."}))
 
     heatmap = []
     
-    prev_frame = cv2.imread(os.path.join(folder_path, files[0]))
-    prev_gray = cv2.cvtColor(prev_frame, cv2.COLOR_BGR2GRAY)
+    # Pad the beginning of the heatmap with zeros to keep it synced with your UI's video player
+    for _ in range(step_size):
+        heatmap.append(0)
 
-    for i in range(1, len(files)):
+    for i in range(step_size, len(files)):
+        # Grab the frame from 'step_size' frames ago
+        prev_frame = cv2.imread(os.path.join(folder_path, files[i - step_size]))
+        prev_gray = cv2.cvtColor(prev_frame, cv2.COLOR_BGR2GRAY)
+        
+        # Grab the current frame
         curr_frame = cv2.imread(os.path.join(folder_path, files[i]))
         curr_gray = cv2.cvtColor(curr_frame, cv2.COLOR_BGR2GRAY)
 
@@ -27,7 +33,7 @@ def analyze_optical_flow(folder_path):
         # Convert to Magnitude (speed) and Angle (direction in radians)
         mag, ang = cv2.cartToPolar(flow[..., 0], flow[..., 1])
         
-        # Filter out static pixels (ignoring the HUD and frozen crosshairs)
+        # Filter out static pixels
         moving_pixels_angles = ang[mag > 1.5] 
         
         if len(moving_pixels_angles) > 100: # Ensure there is actually enough motion to judge
@@ -45,19 +51,13 @@ def analyze_optical_flow(folder_path):
             dominant_ratio = dominant_bucket_count / total_moving_pixels
             
             # THE VERDICT MATH:
-            # If > 20% of moving pixels agree on a direction, it's highly cohesive (Real).
-            # If < 5% agree, the pixels are boiling randomly (AI Slop).
-            # We map this ratio inversely to a 0-100 Slop Probability.
             slop_prob = max(0, min(100, (1.0 - (dominant_ratio / 0.20)) * 100))
         else:
             # If nothing is moving, it's not slop, it's just a still image.
             slop_prob = 0
             
         heatmap.append(round(slop_prob))
-        prev_gray = curr_gray
 
-    heatmap.insert(0, 0)
-    
     avg_slop = sum(heatmap) / len(heatmap)
     confidence = max(0, 100 - avg_slop)
 
@@ -70,4 +70,8 @@ def analyze_optical_flow(folder_path):
 
 if __name__ == "__main__":
     folder_target = sys.argv[1]
-    analyze_optical_flow(folder_target)
+    
+    # Allows your Node server to pass the dropdown value, but defaults to a 5-frame skip
+    step_val = int(sys.argv[2]) if len(sys.argv) > 2 else 5
+    
+    analyze_optical_flow(folder_target, step_size=step_val)

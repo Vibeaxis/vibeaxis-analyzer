@@ -1,16 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
-import { Activity, Play, Terminal, ShieldAlert, Settings, AlertTriangle, CheckCircle2, Crosshair } from 'lucide-react';
+import { Activity, Play, Terminal, ShieldAlert, Settings, AlertTriangle, CheckCircle2, Crosshair, Share2, Check } from 'lucide-react';
 
 export default function App() {
-  const [sensitivity, setSensitivity] = useState(75);
+  const [sensitivity, setSensitivity] = useState(28); // Defaulted to the new smart 28%
   const [frameDepth, setFrameDepth] = useState(30);
-  const [mode, setMode] = useState('Deep Scan');
+  const [mode, setMode] = useState('Optical Flow (Vector Histogram)');
   const [isScanning, setIsScanning] = useState(false);
   const [progress, setProgress] = useState(0);
   const [logs, setLogs] = useState([{ type: 'info', text: "Video Slop Analyzer initialized and awaiting input..." }]);
   const [videoFile, setVideoFile] = useState(null);
   const [finalVerdict, setFinalVerdict] = useState(null);
+  
+  // New state for the copy receipt button
+  const [copied, setCopied] = useState(false);
   
   const logContainerRef = useRef(null);
 
@@ -25,6 +28,21 @@ export default function App() {
 
   const addLog = (type, text) => {
     setLogs(prev => [...prev, { type, text }]);
+  };
+
+  // ---> NEW: THE FORENSIC RECEIPT GENERATOR <---
+  const handleCopyLink = () => {
+    if (!finalVerdict) return;
+    
+    // Generates a clean, terminal-style receipt they can paste into Reddit
+    const mockUrl = `https://vibeaxis.com/scanner?score=${finalVerdict.score}&cat=${encodeURIComponent(finalVerdict.category.replace(/ /g, '_'))}`;
+    const receipt = `> VibeAxis Labs // Forensic Scan Complete\n> Target: ${videoFile?.name || 'media_file.mp4'}\n> Vector Chaos Index: ${finalVerdict.score}%\n> Classification: ${finalVerdict.category}\n\nVerify receipt: ${mockUrl}`;
+    
+    navigator.clipboard.writeText(receipt);
+    setCopied(true);
+    addLog('info', 'Forensic receipt and URL copied to clipboard.');
+    
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const handleStartScan = async () => {
@@ -58,49 +76,58 @@ export default function App() {
       });
 
       const data = await response.json();
-
       if (!response.ok) throw new Error(data.error || "Backend failed");
 
-      const slopProbability = 100 - data.overallConfidence;
-
-      let vText = "AUTHENTIC";
-      let vColor = "#10b981"; 
-      
-      if (slopProbability > 50) {
-        vText = "AI SLOP DETECTED";
-        vColor = "#ef4444"; 
-      } else if (slopProbability > 20) {
-        vText = "SUSPICIOUS ARTIFACTS";
-        vColor = "#f59e0b"; 
-      }
-
-      setFinalVerdict({
-        score: slopProbability.toFixed(1),
-        text: vText,
-        color: vColor,
-        details: data
-      });
-
-      setProgress(100);
-      
-      addLog('success', `Engine cycle complete. Overall Slop Probability: ${slopProbability.toFixed(1)}%`);
-      
       let anomaliesFound = 0;
+      let criticalAnomalies = 0;
+      
+      const threshold = (100 - sensitivity) * 1.5; 
+
       data.heatmap.forEach((score, index) => {
-        const threshold = 100 - sensitivity; 
-        if (score > threshold + 30) {
+        if (score > threshold + 40) { 
           addLog('error', `[FRAME ${index}] CRITICAL: Violent vector splitting (Possible anatomical morph)`);
+          criticalAnomalies++;
           anomaliesFound++;
-        } else if (score > threshold) {
+        } else if (score > threshold + 15) { 
           addLog('warning', `[FRAME ${index}] WARNING: Non-uniform pixel boiling detected (Texture failure)`);
           anomaliesFound++;
         }
       });
 
+      const flatAverage = 100 - data.overallConfidence;
+      const anomalyDensity = (anomaliesFound / data.framesExtracted) * 100; 
+      const criticalDensity = (criticalAnomalies / data.framesExtracted) * 100;
+      
+      let slopProbability = flatAverage;
+      if (anomaliesFound > 0) {
+          slopProbability = Math.min(100, flatAverage + anomalyDensity + (criticalDensity * 2));
+      }
+
+      let vCategory = "Stable Physics";
+      let vColor = "#10b981"; 
+      
+      if (slopProbability > 60 || criticalDensity > 5) {
+        vCategory = "Severe Temporal Chaos";
+        vColor = "#ef4444"; 
+      } else if (slopProbability > 35 || anomalyDensity > 10) {
+        vCategory = "Moderate Artifacting";
+        vColor = "#f59e0b"; 
+      }
+
+      setFinalVerdict({
+        score: slopProbability.toFixed(1),
+        category: vCategory,
+        color: vColor,
+        details: data
+      });
+
+      setProgress(100);
+      addLog('success', `Engine cycle complete. Vector Chaos Index: ${slopProbability.toFixed(1)}`);
+
       if (anomaliesFound === 0) {
-        addLog('success', "VERDICT: Dominant motion vectors are uniform. Physics behave within normal parameters.");
+        addLog('success', "ANALYSIS: Dominant motion vectors are uniform. Physics behave within normal parameters.");
       } else {
-        addLog('warning', `VERDICT: Detected ${anomaliesFound} temporal anomalies across ${data.framesExtracted} frames.`);
+        addLog('warning', `ANALYSIS: Detected ${anomaliesFound} temporal anomalies across ${data.framesExtracted} frames.`);
       }
       
     } catch (error) {
@@ -123,11 +150,9 @@ export default function App() {
     { subject: 'Texture Consistency', A: 100, fullMark: 100 },
   ];
 
-return (
-    // STRICT VIEWPORT LOCK
+  return (
     <div style={{ backgroundColor: '#09090b', color: '#f8fafc', height: '100vh', width: '100%', overflow: 'hidden', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', fontFamily: 'Inter, sans-serif', padding: '2rem' }}>
       
-      {/* Header (Fixed Height) */}
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: '2rem', borderBottom: '1px solid #27272a', paddingBottom: '1rem', flexShrink: 0 }}>
         <Activity color="#10b981" size={28} style={{ marginRight: '1rem' }} />
         <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '600', letterSpacing: '-0.02em' }}>
@@ -135,10 +160,8 @@ return (
         </h1>
       </div>
 
-      {/* Main Content Area (Fills remaining space) */}
       <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '1fr 2.5fr', gap: '2rem' }}>
         
-        {/* Left Column: Controls */}
         <div style={{ backgroundColor: '#18181b', padding: '1.5rem', borderRadius: '12px', border: '1px solid #27272a', height: 'fit-content' }}>
           <h2 style={{ display: 'flex', alignItems: 'center', fontSize: '1rem', marginBottom: '2rem', color: '#a1a1aa', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '1px' }}>
             <Settings size={16} style={{ marginRight: '0.5rem' }} /> Parameters
@@ -181,7 +204,9 @@ return (
             />
           </div>
 
+          {/* THE FIX: Added the .btn-execute class here for the target pulse effect! */}
           <button 
+            className="btn-execute"
             onClick={handleStartScan}
             disabled={isScanning}
             style={{ 
@@ -195,105 +220,110 @@ return (
           </button>
         </div>
 
-        {/* Right Column: Visualizations & Logs */}
-        {/* FIX: minHeight: 0 added here to prevent vertical stretching */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', minHeight: 0 }}>
           
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', flexShrink: 0 }}>
-            {/* Verdict Card */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '2rem', height: '220px', flexShrink: 0 }}>
+            
             {finalVerdict ? (
               <div style={{ 
+                position: 'relative', // Added relative positioning for the absolute button
                 backgroundColor: '#18181b', padding: '2rem', borderRadius: '12px', 
                 border: `1px solid ${finalVerdict.color}40`, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center',
-                boxShadow: `0 0 40px ${finalVerdict.color}10`
+                boxShadow: `0 0 40px ${finalVerdict.color}10`, height: '100%'
               }}>
+                {/* THE FIX: The new Share / Copy Link button */}
+                <button 
+                  onClick={handleCopyLink}
+                  style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'transparent', border: 'none', color: copied ? '#10b981' : '#a1a1aa', cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'color 0.2s' }}
+                  title="Copy Scan Receipt"
+                >
+                  {copied ? <Check size={20} /> : <Share2 size={20} />}
+                </button>
+
                 <h3 style={{ color: '#a1a1aa', margin: '0 0 1rem 0', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '2px' }}>
-                  Forensic Verdict
+                  Vector Chaos Index
                 </h3>
-                <div style={{ fontSize: '2.5rem', fontWeight: '800', color: finalVerdict.color, marginBottom: '0.5rem', textAlign: 'center', lineHeight: '1.1' }}>
-                  {finalVerdict.text}
+                {/* THE FIX: Added text-glitch class if it's severe slop! */}
+                <div className={finalVerdict.color === '#ef4444' ? 'text-glitch' : ''} style={{ fontSize: '3.5rem', fontWeight: '900', color: finalVerdict.color, marginBottom: '0.25rem', textAlign: 'center', lineHeight: '1.1' }}>
+                  {finalVerdict.score}
                 </div>
-                <div style={{ color: '#e4e4e7', fontSize: '1.1rem', marginTop: '1rem' }}>
-                  Slop Probability: <span style={{ color: finalVerdict.color, fontWeight: '700' }}>{finalVerdict.score}%</span>
+                <div style={{ color: '#e4e4e7', fontSize: '0.9rem', marginTop: '0.5rem', fontWeight: 'bold', letterSpacing: '1px', textTransform: 'uppercase' }}>
+                  {finalVerdict.category}
                 </div>
               </div>
             ) : (
-              <div style={{ backgroundColor: '#18181b', padding: '2rem', borderRadius: '12px', border: '1px dashed #27272a', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#52525b' }}>
+              <div style={{ backgroundColor: '#18181b', padding: '2rem', borderRadius: '12px', border: '1px dashed #27272a', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#52525b', height: '100%' }}>
                  Awaiting video ingestion...
               </div>
             )}
 
-        {/* Visual Evidence Panel OR Radar Chart */}
-            <div style={{ backgroundColor: '#18181b', borderRadius: '12px', border: '1px solid #27272a', height: '260px', overflow: 'hidden', position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            <div style={{ backgroundColor: '#18181b', borderRadius: '12px', border: '1px solid #27272a', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '100%' }}>
+              <div style={{ padding: '0.75rem 1.5rem', borderBottom: '1px solid #27272a', backgroundColor: '#18181b', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+                 <h3 style={{ margin: 0, fontSize: '0.85rem', color: '#e4e4e7', display: 'flex', alignItems: 'center', fontWeight: '500' }}>
+                  <Terminal size={14} style={{ marginRight: '0.5rem', color: '#10b981' }} /> Vector Terminal Log
+                </h3>
+                <span style={{ fontSize: '0.75rem', color: '#52525b', fontFamily: 'monospace' }}>DEPTH: {frameDepth}F</span>
+              </div>
+              
+              <div ref={logContainerRef} style={{ padding: '1rem 1.5rem', overflowY: 'auto', flex: 1, fontFamily: 'monospace', fontSize: '0.8rem' }}>
+                {logs.map((log, index) => {
+                  let color = '#a1a1aa';
+                  let Icon = Terminal;
+                  if (log.type === 'error') { color = '#ef4444'; Icon = AlertTriangle; }
+                  if (log.type === 'warning') { color = '#f59e0b'; Icon = AlertTriangle; }
+                  if (log.type === 'success') { color = '#10b981'; Icon = CheckCircle2; }
+
+                  return (
+                    <div key={index} style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '0.5rem', color: color, lineHeight: '1.4' }}>
+                      <Icon size={12} style={{ marginRight: '0.5rem', marginTop: '0.15rem', flexShrink: 0 }} />
+                      <span>{log.text}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ flex: 1, backgroundColor: '#09090b', borderRadius: '12px', border: '1px solid #27272a', display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
+            
+            {/* THE FIX: Added crt-overlay to the image box */}
+            <div className="crt-overlay" style={{ flex: 1, position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden', backgroundColor: '#000' }}>
               {finalVerdict ? (
                 <>
-                  {/* The actual PNG pulled from the server */}
                   <img 
                     src={finalVerdict.details.evidenceUrl} 
                     alt="Target Frame" 
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.6, filter: 'grayscale(50%) contrast(120%)' }} 
+                    style={{ width: '100%', height: '100%', objectFit: 'contain', filter: 'contrast(110%)' }} 
                   />
                   
-                  {/* Targeting Reticle Vibe */}
-                  <Crosshair size={64} color={finalVerdict.color} style={{ position: 'absolute', opacity: 0.5 }} />
+                  {/* THE FIX: Added crosshair-lock animation to the targeting reticle */}
+                  <Crosshair className="crosshair-lock" size={72} color={finalVerdict.color} style={{ position: 'absolute', opacity: 0.7 }} />
                   
-                  {/* Forensic Frame Tag */}
-                  <div style={{ position: 'absolute', top: '1rem', left: '1rem', backgroundColor: '#09090b', border: `1px solid ${finalVerdict.color}`, color: '#e4e4e7', padding: '0.4rem 0.8rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', letterSpacing: '1px', display: 'flex', alignItems: 'center' }}>
+                  <div style={{ position: 'absolute', top: '1rem', left: '1rem', backgroundColor: 'rgba(9, 9, 11, 0.9)', backdropFilter: 'blur(4px)', border: `1px solid ${finalVerdict.color}`, color: '#e4e4e7', padding: '0.5rem 1rem', borderRadius: '6px', fontSize: '0.85rem', fontWeight: 'bold', letterSpacing: '1px', display: 'flex', alignItems: 'center', zIndex: 20 }}>
                     <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: finalVerdict.color, marginRight: '0.5rem', boxShadow: `0 0 8px ${finalVerdict.color}` }} />
                     FRAME {finalVerdict.details.evidenceFrame} CAPTURED
                   </div>
                   
-                  {/* Score Tag */}
-                  <div style={{ position: 'absolute', bottom: '1rem', right: '1rem', backgroundColor: 'rgba(9, 9, 11, 0.8)', backdropFilter: 'blur(4px)', color: finalVerdict.color, padding: '0.4rem 0.8rem', borderRadius: '6px', fontSize: '0.85rem', fontWeight: 'bold', border: `1px solid ${finalVerdict.color}40` }}>
+                  <div style={{ position: 'absolute', bottom: '1rem', right: '1rem', backgroundColor: 'rgba(9, 9, 11, 0.9)', backdropFilter: 'blur(4px)', color: finalVerdict.color, padding: '0.5rem 1rem', borderRadius: '6px', fontSize: '1rem', fontWeight: 'bold', border: `1px solid ${finalVerdict.color}40`, zIndex: 20 }}>
                     VECTOR CHAOS: {finalVerdict.details.evidenceScore}%
                   </div>
                 </>
               ) : (
-                <div style={{ padding: '1.5rem', width: '100%', height: '100%' }}>
+                <div style={{ padding: '2rem', width: '100%', height: '100%', opacity: 0.5 }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
                       <PolarGrid stroke="#27272a" />
-                      <PolarAngleAxis dataKey="subject" tick={{ fill: '#a1a1aa', fontSize: 11 }} />
+                      <PolarAngleAxis dataKey="subject" tick={{ fill: '#a1a1aa', fontSize: 12 }} />
                       <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                      <Radar name="Video Stability" dataKey="A" stroke="#10b981" fill="#10b981" fillOpacity={0.2} strokeWidth={2} />
+                      <Radar name="Video Stability" dataKey="A" stroke="#10b981" fill="#10b981" fillOpacity={0.1} strokeWidth={2} />
                     </RadarChart>
                   </ResponsiveContainer>
                 </div>
               )}
             </div>
-          </div>
 
-          {/* Contextual Event Log */}
-          <div style={{ backgroundColor: '#18181b', borderRadius: '12px', border: '1px solid #27272a', overflow: 'hidden', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-            <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid #27272a', backgroundColor: '#18181b', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-               <h3 style={{ margin: 0, fontSize: '0.9rem', color: '#e4e4e7', display: 'flex', alignItems: 'center', fontWeight: '500' }}>
-                <Crosshair size={16} style={{ marginRight: '0.5rem', color: '#10b981' }} /> Vector Analysis Log
-              </h3>
-              <span style={{ fontSize: '0.8rem', color: '#52525b', fontFamily: 'monospace' }}>SCAN_DEPTH: {frameDepth}F</span>
-            </div>
-            
-            {/* FIX: The actual scrolling container is now strictly bounded */}
-            <div ref={logContainerRef} style={{ padding: '1.5rem', overflowY: 'auto', flex: 1, fontFamily: 'monospace', fontSize: '0.9rem' }}>
-              {logs.map((log, index) => {
-                let color = '#a1a1aa';
-                let Icon = Terminal;
-                
-                if (log.type === 'error') { color = '#ef4444'; Icon = AlertTriangle; }
-                if (log.type === 'warning') { color = '#f59e0b'; Icon = AlertTriangle; }
-                if (log.type === 'success') { color = '#10b981'; Icon = CheckCircle2; }
-
-                return (
-                  <div key={index} style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '0.75rem', color: color, lineHeight: '1.4' }}>
-                    <Icon size={14} style={{ marginRight: '0.75rem', marginTop: '0.15rem', flexShrink: 0 }} />
-                    <span>{log.text}</span>
-                  </div>
-                )
-              })}
-            </div>
-
-            {/* Heatmap Timeline Scrubber */}
-            <div style={{ padding: '1rem', borderTop: '1px solid #27272a', backgroundColor: '#09090b', flexShrink: 0 }}>
-              <div style={{ display: 'flex', width: '100%', height: '12px', borderRadius: '4px', overflow: 'hidden', backgroundColor: '#27272a' }}>
+            <div style={{ padding: '1rem', borderTop: '1px solid #27272a', backgroundColor: '#18181b', flexShrink: 0 }}>
+              <div style={{ display: 'flex', width: '100%', height: '16px', borderRadius: '4px', overflow: 'hidden', backgroundColor: '#27272a' }}>
                 {isScanning ? (
                   <div style={{ width: `${progress}%`, backgroundColor: '#10b981', height: '100%', transition: 'width 0.3s ease' }} />
                 ) : finalVerdict && finalVerdict.details.heatmap ? (
@@ -302,12 +332,13 @@ return (
                     const g = score > 50 ? 68 : score > 20 ? 158 : 185;
                     const b = score > 50 ? 68 : score > 20 ? 11 : 129;
                     return (
-                      <div key={i} style={{ flexGrow: 1, height: '100%', backgroundColor: `rgb(${r}, ${g}, ${b})`, borderRight: '1px solid rgba(0,0,0,0.2)' }} title={`Frame ${i}: ${score}% Slop`} />
+                      <div key={i} style={{ flexGrow: 1, height: '100%', backgroundColor: `rgb(${r}, ${g}, ${b})`, borderRight: '1px solid rgba(0,0,0,0.3)' }} title={`Frame ${i}: ${score}% Slop`} />
                     )
                   })
                 ) : null}
               </div>
             </div>
+
           </div>
 
         </div>

@@ -48,9 +48,12 @@
     "directories": {
       "output": "dist-desktop"
     },
-    "extraFiles": [
-      "server.js",
+    "extraResources": [
       "analyzer.exe"
+    ],
+    "asarUnpack": [
+      "node_modules/ffmpeg-static/**/*",
+      "node_modules/ffprobe-static/**/*"
     ]
   }
 }

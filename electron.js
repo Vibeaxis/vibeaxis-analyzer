@@ -9,12 +9,14 @@ const __dirname = path.dirname(__filename);
 let mainWindow;
 let serverProcess;
 
+// THE MISSING LINE IS RIGHT HERE:
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
     backgroundColor: '#09090b',
-    title: "VibeAxis Slop Analyzer",
+    title: "VibeAxis Slop Analyzer", 
+    icon: path.join(__dirname, 'dist', 'icon.ico'), 
     autoHideMenuBar: true,
     webPreferences: {
       nodeIntegration: true,
@@ -22,13 +24,20 @@ function createWindow() {
     }
   });
 
-  // Load the built React app
   mainWindow.loadFile(path.join(__dirname, 'dist', 'index.html'));
 }
 
 app.whenReady().then(() => {
-  // Boot up your Express/FFmpeg backend in the background
-  serverProcess = fork(path.join(__dirname, 'server.js'));
+  // Boot the Node server and pass the exact system paths as environment variables
+  const serverPath = path.join(__dirname, 'server.js');
+  serverProcess = fork(serverPath, [], {
+      env: { 
+        ...process.env, 
+        ELECTRON_RUN_AS_NODE: '1', 
+        IS_PACKAGED: app.isPackaged ? 'true' : 'false', 
+        RESOURCES_PATH: process.resourcesPath 
+      }
+  });
   
   createWindow();
 
@@ -39,7 +48,6 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
-    // Kill the local server when the user closes the app
     if (serverProcess) serverProcess.kill();
     app.quit();
   }
