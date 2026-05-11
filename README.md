@@ -1,16 +1,48 @@
-# React + Vite
+Vibeaxis Temporal Analyzer
+This is the open-source, local-first inspection engine built to detect AI-generated video artifacts, deepfakes, and diffusion "slop".
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+It scrubs video files entirely offline, tracking pixel-level temporal inconsistencies without requiring you to upload sensitive media to a closed-box cloud API.
 
-Currently, two official plugins are available:
+This repository contains the offline core of the commercial engine running at vibeaxis.com.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+How it Works (The Math)
+Generative AI models struggle with object permanence. While individual frames might look photorealistic, the movement between frames often breaks the laws of physics.
 
-## React Compiler
+This analyzer extracts consecutive frames and pushes them through a Dense Optical Flow engine (using Farneback's algorithm via OpenCV).
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+It maps the magnitude and direction of every moving pixel.
 
-## Expanding the ESLint configuration
+It plots those vectors onto a 36-bucket directional histogram.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+The Verdict: If the vast majority of pixels agree on a trajectory (e.g., a real camera pan), the frame is coherent. If the vectors are scattering randomly in 360 degrees, the pixels are "boiling"—the undisputed hallmark of AI generation.
+
+Tech Stack
+To keep frame buffering fast and the UI responsive, the architecture is split:
+
+Frontend (React / Vite): Handles the interactive heatmap timeline and UI state.
+
+Backend (Python / OpenCV / Numpy): Crunches the dense vector math and generates the telemetry.
+
+Deployment (Docker): Containerized for isolated, reproducible local execution.
+
+Quick Start
+1. Clone & Install Dependencies
+
+Bash
+git clone https://github.com/Vibeaxis/vibeaxis-analyzer.git
+cd vibeaxis-analyzer
+
+# Install frontend dependencies
+npm install
+
+# Install Python backend dependencies
+pip install opencv-python numpy
+2. Run the Stack
+If you have Docker installed, simply run:
+
+Bash
+docker-compose up --build
+Alternatively, you can run the Vite frontend (npm run dev) and the local Node/Python server (npm run server) manually.
+
+The Full Engine
+This is a lightweight, local-first extraction of our primary logic. For the fully managed, cloud-accelerated version featuring deeper Neural Network inspection and an expanded forensics suite, visit vibeaxis.com.
