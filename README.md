@@ -3,7 +3,7 @@ This is the open-source, local-first inspection engine built to detect AI-genera
 
 It scrubs video files entirely offline, tracking pixel-level temporal inconsistencies without requiring you to upload sensitive media to a closed-box cloud API.
 
-This repository contains the offline core of the commercial engine running at vibeaxis.com.
+This repository contains the offline core of the commercial engine running at https://vibeaxis.com.
 
 How it Works (The Math)
 Generative AI models struggle with object permanence. While individual frames might look photorealistic, the movement between frames often breaks the laws of physics.
@@ -45,4 +45,4 @@ docker-compose up --build
 Alternatively, you can run the Vite frontend (npm run dev) and the local Node/Python server (npm run server) manually.
 
 The Full Engine
-This is a lightweight, local-first extraction of our primary logic. For the fully managed, cloud-accelerated version featuring deeper Neural Network inspection and an expanded forensics suite, visit vibeaxis.com.
+This is a lightweight, local-first extraction of our primary logic. For the fully managed, cloud-accelerated version featuring deeper Neural Network inspection and an expanded forensics suite, visit https://vibeaxis.com.
